@@ -1,5 +1,6 @@
 import pygame
 import random
+import os
 
 # Initialize Pygame
 pygame.init()
@@ -18,7 +19,6 @@ RED = (255, 0, 0)
 # Button sizes
 button_width = 150
 button_height = 50
-# Button position (top-left corner)
 button_x = 10
 button_y = 640
 
@@ -32,95 +32,121 @@ char_speed = 1
 # TNT properties
 tnt_width = 50
 tnt_height = 50
-explosion_radius = 140  # Explosion radius
-explosion_duration = 500  # Explosion lasts for 0.5 seconds
-tnts = []  # List to store TNTs with their states
+explosion_radius = 140
+explosion_duration = 500
+tnts = []
 
 # Score properties
-score = 0  # Initialize score
+score = 0
+
+# High score handling
+highscore_file = "highscore.txt"
+
+# Load the high score from the file (create the file if it doesn't exist)
+if not os.path.exists(highscore_file):
+    with open(highscore_file, "w") as f:
+        f.write("0")
+
+with open(highscore_file, "r") as f:
+    high_score = int(f.read())
 
 # Timer properties
-countdown = 20  # Initial countdown time (seconds)
-TIMER_EVENT = pygame.USEREVENT + 1  # Define custom timer event
-pygame.time.set_timer(TIMER_EVENT, 1000)  # Trigger every 1 second
+countdown = 20
+TIMER_EVENT = pygame.USEREVENT + 1
+pygame.time.set_timer(TIMER_EVENT, 1000)
 
-# Load character image (Ensure the image is in the same folder as the script)
-char_image = pygame.image.load('character_idle.png')  # Replace with your sprite
-char_image = pygame.transform.scale(char_image, (character_width, character_height))  # Resize to fit the character's dimensions
+# Load character image
+char_image = pygame.image.load('character_idle.png')
+char_image = pygame.transform.scale(char_image, (character_width, character_height))
 
-# Load TNT image (Ensure 'tnt.webp' is in the same folder as the script)
-tnt_image = pygame.image.load('tnt.webp')  # Replace with your TNT .webp image
-tnt_image = pygame.transform.scale(tnt_image, (tnt_width, tnt_height))  # Resize TNT image
+# Load TNT image
+tnt_image = pygame.image.load('tnt.webp')
+tnt_image = pygame.transform.scale(tnt_image, (tnt_width, tnt_height))
 
-# Wait function to delay before showing Game Over screen
+# Wait function
 def wait(milliseconds):
-    start_time = pygame.time.get_ticks()  # Get current time in milliseconds
+    start_time = pygame.time.get_ticks()
     while pygame.time.get_ticks() - start_time < milliseconds:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
 
-# Game Over screen function
+# Game Over screen
 def game_over():
+    global high_score, running, score, countdown, character_x, character_y, tnts, game_over_screen
+
     font = pygame.font.Font(None, 72)
     text = font.render("Game Over", True, RED)
-    text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-    
-    # Display score on Game Over screen
+    text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
+
+    # Update and save the high score
+    if score > high_score:
+        high_score = score
+        with open(highscore_file, "w") as f:
+            f.write(str(high_score))
+
+    # Display the high score and current score
     score_text = pygame.font.Font(None, 36).render(f"Score: {score}", True, BLUE)
-    score_rect = score_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
+    score_rect = score_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+    high_score_text = pygame.font.Font(None, 36).render(f"High Score: {high_score}", True, BLUE)
+    high_score_rect = high_score_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
 
-    # Show the screen
-    screen.fill(WHITE)
-    screen.blit(text, text_rect)
-    screen.blit(score_text, score_rect)
-    pygame.display.flip()
+    # Retry button
+    retry_button_width = 200
+    retry_button_height = 50
+    retry_button_x = WIDTH // 2 - retry_button_width // 2
+    retry_button_y = HEIGHT // 2 + 100
+    retry_button_rect = pygame.Rect(retry_button_x, retry_button_y, retry_button_width, retry_button_height)
 
-    # Wait for a few seconds before closing
-    wait(3000)
-    pygame.quit()
-    quit()
+    while True:
+        screen.fill(WHITE)
+        screen.blit(text, text_rect)
+        screen.blit(score_text, score_rect)
+        screen.blit(high_score_text, high_score_rect)
 
-# Game loop
+        # Draw Retry button
+        pygame.draw.rect(screen, GREEN, retry_button_rect)
+        retry_text = pygame.font.Font(None, 36).render("Retry", True, WHITE)
+        retry_text_rect = retry_text.get_rect(center=retry_button_rect.center)
+        screen.blit(retry_text, retry_text_rect)
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if retry_button_rect.collidepoint(event.pos):
+                    # Reset game state
+                    score = 0
+                    countdown = 20
+                    character_x = WIDTH // 2 - character_width // 2
+                    character_y = HEIGHT // 2 - character_height // 2
+                    tnts = []
+                    game_over_screen = False
+                    return  # Exit game over and retry
+
+# Main game loop
 running = True
 game_over_screen = False
 
 while running:
-    current_time = pygame.time.get_ticks()  # Get current time in milliseconds
+    current_time = pygame.time.get_ticks()
 
-    # Event handling
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == TIMER_EVENT:  # Handle countdown timer event
+        elif event.type == TIMER_EVENT:
             countdown -= 1
             if countdown <= 0:
-                game_over()  # Trigger Game Over when time runs out
-                
-        # Detect mouse click on button
+                game_over()
+
         if event.type == pygame.MOUSEBUTTONDOWN and not game_over_screen:
             mouse_x, mouse_y = event.pos
-
-            # Check if the click is within the button area
             if (button_x <= mouse_x <= button_x + button_width) and (button_y <= mouse_y <= button_y + button_height):
-                # Add two new TNTs with their creation time and detonating status
-                for _ in range(2):  # Add two TNTs
-                    new_tnt = {
-                        "x": random.randint(tnt_width, WIDTH - tnt_width),
-                        "y": random.randint(tnt_height, HEIGHT - tnt_height),
-                        "time_created": current_time,
-                        "detonating": False,  # Indicates if the TNT is in the explosion phase
-                        "time_detonated": None  # Time when detonation starts
-                    }
-                    tnts.append(new_tnt)
-                score += 2  # Increase score by 2 when button is pressed
-
-        # Detect spacebar key press
-        if event.type == pygame.KEYDOWN and not game_over_screen:
-            if event.key == pygame.K_SPACE:
-                # Simulate button press when spacebar is pressed
-                for _ in range(2):  # Add two TNTs
+                for _ in range(2):
                     new_tnt = {
                         "x": random.randint(tnt_width, WIDTH - tnt_width),
                         "y": random.randint(tnt_height, HEIGHT - tnt_height),
@@ -129,25 +155,34 @@ while running:
                         "time_detonated": None
                     }
                     tnts.append(new_tnt)
-                score += 2  # Increase score by 2 when spacebar is pressed
+                score += 2
+
+        if event.type == pygame.KEYDOWN and not game_over_screen:
+            if event.key == pygame.K_SPACE:
+                for _ in range(2):
+                    new_tnt = {
+                        "x": random.randint(tnt_width, WIDTH - tnt_width),
+                        "y": random.randint(tnt_height, HEIGHT - tnt_height),
+                        "time_created": current_time,
+                        "detonating": False,
+                        "time_detonated": None
+                    }
+                    tnts.append(new_tnt)
+                score += 2
 
     if game_over_screen:
-        continue  # Skip the rest of the game loop to display Game Over
+        continue
 
-    # Update TNTs
     for tnt in tnts:
-        # Check if the TNT should start detonating (after 3 seconds)
-        if not tnt["detonating"] and current_time - tnt["time_created"] >= 3000:  # 3 seconds after creation
+        if not tnt["detonating"] and current_time - tnt["time_created"] >= 3000:
             tnt["detonating"] = True
             tnt["time_detonated"] = current_time
 
-    # Remove TNTs after their explosion ends (explosion duration is 0.5 seconds)
     tnts = [
         tnt for tnt in tnts
         if not tnt["detonating"] or (current_time - tnt["time_detonated"] <= explosion_duration)
     ]
 
-    # Key handling for character movement
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT] and character_x > 0:
         character_x -= char_speed
@@ -158,52 +193,41 @@ while running:
     if keys[pygame.K_DOWN] and character_y < HEIGHT - character_height:
         character_y += char_speed
 
-    # Check for explosion collisions (only after detonation)
     for tnt in tnts:
         if tnt["detonating"]:
-            # Calculate distance from TNT center to character
             distance = ((character_x - tnt["x"])**2 + (character_y - tnt["y"])**2)**0.5
             if distance <= explosion_radius:
                 game_over_screen = True
-                game_over()  # Call the game over function
+                game_over()
 
-    # background colour
     screen.fill(WHITE)
-
-    # Draw the button (green rectangle)
     pygame.draw.rect(screen, GREEN, (button_x, button_y, button_width, button_height))
-
-    # Draw the text on the button (centered text)
     font = pygame.font.Font(None, 36)
     text = font.render("Click Me!", True, WHITE)
     text_x = button_x + (button_width - text.get_width()) // 2
     text_y = button_y + (button_height - text.get_height()) // 2
     screen.blit(text, (text_x, text_y))
 
-    # Draw the TNTs
     for tnt in tnts:
         if tnt["detonating"]:
-            # Draw the explosion (red circle or animation could be used here)
             pygame.draw.circle(screen, RED, (tnt["x"], tnt["y"]), explosion_radius)
         else:
-            # Draw the TNT (using the TNT image)
             screen.blit(tnt_image, (tnt["x"] - tnt_width // 2, tnt["y"] - tnt_height // 2))
 
-    # Draw the character image
     screen.blit(char_image, (character_x, character_y))
 
-    # Draw the score on the screen (continuously)
     score_text = pygame.font.Font(None, 36).render(f"Score: {score}", True, BLUE)
-    score_rect = score_text.get_rect(topright=(WIDTH - 10, 10))  # Position at the top-right corner
+    score_rect = score_text.get_rect(topright=(WIDTH - 10, 10))
     screen.blit(score_text, score_rect)
 
-    # Draw the countdown on the screen (continuously)
+    high_score_text = pygame.font.Font(None, 36).render(f"High Score: {high_score}", True, BLUE)
+    high_score_rect = high_score_text.get_rect(topright=(WIDTH - 10, 50))
+    screen.blit(high_score_text, high_score_rect)
+
     countdown_text = pygame.font.Font(None, 36).render(f"Time Left: {countdown}", True, BLUE)
-    countdown_rect = countdown_text.get_rect(topleft=(10, 10))  # Position at the top-left corner
+    countdown_rect = countdown_text.get_rect(topleft=(10, 10))
     screen.blit(countdown_text, countdown_rect)
 
-    # Update the display
     pygame.display.flip()
 
-# Quit Pygame
 pygame.quit()
