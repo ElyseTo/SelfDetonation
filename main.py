@@ -19,8 +19,8 @@ RED = (255, 0, 0)
 button_width = 150
 button_height = 50
 # Button position (top-left corner)
-button_x = 0
-button_y = 0
+button_x = 10
+button_y = 640
 
 # Character properties
 character_width = 50
@@ -38,6 +38,11 @@ tnts = []  # List to store TNTs with their states
 
 # Score properties
 score = 0  # Initialize score
+
+# Timer properties
+countdown = 20  # Initial countdown time (seconds)
+TIMER_EVENT = pygame.USEREVENT + 1  # Define custom timer event
+pygame.time.set_timer(TIMER_EVENT, 1000)  # Trigger every 1 second
 
 # Load character image (Ensure the image is in the same folder as the script)
 char_image = pygame.image.load('character_idle.png')  # Replace with your sprite
@@ -74,10 +79,12 @@ def game_over():
 
     # Wait for a few seconds before closing
     wait(3000)
+    pygame.quit()
+    quit()
 
 # Game loop
 running = True
-game_over_screen = False  # Flag to check if game over screen is showing
+game_over_screen = False
 
 while running:
     current_time = pygame.time.get_ticks()  # Get current time in milliseconds
@@ -86,7 +93,11 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
+        elif event.type == TIMER_EVENT:  # Handle countdown timer event
+            countdown -= 1
+            if countdown <= 0:
+                game_over()  # Trigger Game Over when time runs out
+                
         # Detect mouse click on button
         if event.type == pygame.MOUSEBUTTONDOWN and not game_over_screen:
             mouse_x, mouse_y = event.pos
@@ -185,6 +196,11 @@ while running:
     score_text = pygame.font.Font(None, 36).render(f"Score: {score}", True, BLUE)
     score_rect = score_text.get_rect(topright=(WIDTH - 10, 10))  # Position at the top-right corner
     screen.blit(score_text, score_rect)
+
+    # Draw the countdown on the screen (continuously)
+    countdown_text = pygame.font.Font(None, 36).render(f"Time Left: {countdown}", True, BLUE)
+    countdown_rect = countdown_text.get_rect(topleft=(10, 10))  # Position at the top-left corner
+    screen.blit(countdown_text, countdown_rect)
 
     # Update the display
     pygame.display.flip()
